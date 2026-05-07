@@ -1,0 +1,28 @@
+name: Add Entry
+
+on:
+  issues:
+    types: [labeled]
+
+concurrency:
+  group: add-entry
+  cancel-in-progress: false
+
+jobs:
+  add-entry:
+    if: github.event.label.name == 'add-entry'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.0'
+      - name: Build
+        run: go build -o add_entry ./cmd/main.go
+      - name: Run
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LOG_PRIVATE_KEY: ${{ secrets.LOG_PRIVATE_KEY }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+        run: ./add_entry -owner ${{ github.repository_owner }} -repo ${{ github.event.repository.name }} -branch log-data

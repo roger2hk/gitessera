@@ -12,6 +12,9 @@ jobs:
   add-entry:
     if: github.event.label.name == 'add-entry'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
     steps:
       - uses: actions/checkout@v4
       - name: Set up Go
@@ -26,3 +29,7 @@ jobs:
           LOG_PRIVATE_KEY: ${{ secrets.LOG_PRIVATE_KEY }}
           ISSUE_BODY: ${{ github.event.issue.body }}
         run: ./add_entry -owner ${{ github.repository_owner }} -repo ${{ github.event.repository.name }} -branch log-data
+      - name: Close Issue
+        run: gh issue close ${{ github.event.issue.number }} --comment "Auto-closed after adding to log."
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

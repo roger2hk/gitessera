@@ -8,6 +8,27 @@ Gitessera uses the GitHub Git Data API to store log data (checkpoints, tiles, an
 
 ## Usage
 
+### Initializing the Log Branch
+
+Before using Gitessera, you need to create and initialize a dedicated orphan branch to store the log data. We recommend naming it `tlog`.
+
+```bash
+# 1. Create a new orphan branch named tlog
+git checkout --orphan tlog
+
+# 2. Clear all files from the working tree
+git rm -rf .
+
+# 3. Create an empty initial commit
+git commit --allow-empty -m "Initialize empty log data branch"
+
+# 4. Push the branch to GitHub
+git push origin tlog
+
+# 5. Switch back to your main branch
+git checkout main
+```
+
 ### CLI Tool
 
 The project includes a CLI tool in `cmd/main.go` that adds an entry to the log. The entry content is read from the `ISSUE_BODY` environment variable.
@@ -34,7 +55,7 @@ export GITHUB_TOKEN="your_github_token"
 export LOG_PRIVATE_KEY="your_private_key"
 export ISSUE_BODY="content to add"
 
-go run ./cmd/main.go -owner roger2hk -repo gitessera -branch log-data
+go run ./cmd/main.go -owner roger2hk -repo gitessera -branch tlog
 ```
 
 ### GitHub Actions Workflow

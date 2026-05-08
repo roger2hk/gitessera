@@ -145,11 +145,19 @@ func (s *GitHubStorage) Appender(ctx context.Context, opts *tessera.AppendOption
 				}
 				for id, tile := range tiles {
 					path := layout.TilePath(id.Level, id.Index, layout.PartialTileSize(id.Level, id.Index, newSize))
+					
+					slog.DebugContext(ctx, "Writing tile", slog.String("path", path), slog.Int("num_nodes", len(tile.Nodes)))
+					for i, h := range tile.Nodes {
+						slog.DebugContext(ctx, "Tile node", slog.Int("i", i), slog.Int("len", len(h)))
+					}
+
 					var buf bytes.Buffer
 					for _, h := range tile.Nodes {
 						buf.Write(h)
 					}
 					tileBytes := buf.Bytes()
+					slog.DebugContext(ctx, "Wrote tile bytes", slog.String("path", path), slog.Int("len", len(tileBytes)))
+					
 					if err := addBlob(path, tileBytes); err != nil {
 						return tessera.Index{}, err
 					}

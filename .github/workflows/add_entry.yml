@@ -42,3 +42,9 @@ jobs:
           Commit: ${{ steps.get_sha.outputs.commit_sha }}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Comment on Failure
+        if: failure()
+        run: |
+          gh issue comment ${{ github.event.issue.number }} --body "Workflow failed to add entry. See logs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

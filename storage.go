@@ -539,6 +539,7 @@ func (s *GitHubStorage) readFile(ctx context.Context, path string) ([]byte, erro
 		return nil, fmt.Errorf("expected file, got directory at %s", path)
 	}
 	content, err := fileContent.GetContent()
+	slog.DebugContext(ctx, "readFile content", slog.String("path", path), slog.String("encoding", fileContent.GetEncoding()), slog.Int("len", len(content)), slog.String("content", content))
 	if err != nil {
 		return nil, err
 	}

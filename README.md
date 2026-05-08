@@ -53,6 +53,20 @@ git push -f origin tlog
 git checkout main
 ```
 
+### Verifying the Log
+
+You can use the `fsck` tool from the Tessera project to verify that the log data stored on GitHub is compliant with the `tlog-tiles` specification.
+
+First, create a public key file (e.g., `/tmp/tessera.pub`) with the following content (replace with your log's public key):
+```
+example.com/log/testdata+33d7b496+AeHTu4Q3hEIMHNqc6fASMsq3rKNx280NI+oO5xCFkkSx
+```
+
+Then run the `fsck` tool, pointing it to the raw URL of your log branch:
+```bash
+go run github.com/transparency-dev/tessera/cmd/fsck@main --storage_url=https://raw.githubusercontent.com/roger2hk/gitessera/refs/heads/tlog/ --public_key=/tmp/tessera.pub
+```
+
 ### CLI Tool
 
 The project includes a CLI tool in `cmd/main.go` that adds an entry to the log. The entry content is read from the `ISSUE_BODY` environment variable.

@@ -93,14 +93,14 @@ func main() {
 	}
 
 	slog.DebugContext(ctx, "Creating appender")
-	appender, _, _, err := tessera.NewAppender(ctx, driver, opts)
+	appender, shutdown, r, err := tessera.NewAppender(ctx, driver, opts)
 	if err != nil {
 		slog.ErrorContext(ctx, "Failed to create new appender", slog.Any("error", err))
 		os.Exit(1)
 	}
 
-
-
+	slog.DebugContext(ctx, "Creating awaiter")
+	await := tessera.NewPublicationAwaiter(ctx, r.ReadCheckpoint, 100*time.Millisecond)
 	slog.DebugContext(ctx, "Adding entry")
 	f := appender.Add(ctx, tessera.NewEntry([]byte(issueBody)))
 	indexFutures := []entryInfo{{name: "ISSUE_BODY", f: f}}
@@ -109,7 +109,7 @@ func main() {
 	// Two options to ensure all work is done:
 	// 1) Check each of the futures to ensure that the leaves are sequenced.
 	for _, entry := range indexFutures {
-		seq, err := entry.f()
+		seq, _, err := await.Await(ctx, entry.f)
 		if err != nil {
 			slog.ErrorContext(ctx, "Failed to sequence", slog.String("name", entry.name), slog.Any("error", err))
 			os.Exit(1)
@@ -133,10 +133,10 @@ func main() {
 	slog.DebugContext(ctx, "Shutting down")
 
 	// 2) shutdown the appender
-	// if err := shutdown(ctx); err != nil {
-	// 	slog.ErrorContext(ctx, "Failed to shut down cleanly", slog.Any("error", err))
-	// 	os.Exit(1)
-	// }
+	if err := shutdown(ctx); err != nil {
+		slog.ErrorContext(ctx, "Failed to shut down cleanly", slog.Any("error", err))
+		os.Exit(1)
+	}
 	slog.DebugContext(ctx, "Finished")
 }
 

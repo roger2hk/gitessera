@@ -7,8 +7,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"strconv"
+	"time"
 
 	"log/slog"
 
@@ -145,7 +147,7 @@ func (s *GitHubStorage) Appender(ctx context.Context, opts *tessera.AppendOption
 				}
 				for id, tile := range tiles {
 					path := layout.TilePath(id.Level, id.Index, layout.PartialTileSize(id.Level, id.Index, newSize))
-					
+
 					slog.DebugContext(ctx, "Writing tile", slog.String("path", path), slog.Int("num_nodes", len(tile.Nodes)))
 					for i, h := range tile.Nodes {
 						slog.DebugContext(ctx, "Tile node", slog.Int("i", i), slog.Int("len", len(h)))
@@ -157,7 +159,7 @@ func (s *GitHubStorage) Appender(ctx context.Context, opts *tessera.AppendOption
 					}
 					tileBytes := buf.Bytes()
 					slog.DebugContext(ctx, "Wrote tile bytes", slog.String("path", path), slog.Int("len", len(tileBytes)))
-					
+
 					if err := addBlob(path, tileBytes); err != nil {
 						return tessera.Index{}, err
 					}
@@ -541,21 +543,35 @@ func (s *GitHubStorage) ReadEntryBundle(ctx context.Context, index uint64, p uin
 }
 
 func (s *GitHubStorage) readFile(ctx context.Context, path string) ([]byte, error) {
-	rc, _, err := s.client.Repositories.DownloadContents(ctx, s.owner, s.repo, path, &github.RepositoryContentGetOptions{Ref: s.branch})
+	url := fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/%s/%s?t=%d", s.owner, s.repo, s.branch, path, time.Now().UnixNano())
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
-		var errResp *github.ErrorResponse
-		if errors.As(err, &errResp) && errResp.Response.StatusCode == 404 {
-			return nil, os.ErrNotExist
-		}
 		return nil, err
 	}
-	defer rc.Close()
 
-	b, err := io.ReadAll(rc)
+	token := os.Getenv("GITHUB_TOKEN")
+	if token != "" {
+		req.Header.Set("Authorization", "token "+token)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
-	slog.DebugContext(ctx, "readFile download", slog.String("path", path), slog.Int("len", len(b)))
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, os.ErrNotExist
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to fetch file: %s", resp.Status)
+	}
+
+	b, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	slog.DebugContext(ctx, "readFile direct", slog.String("path", path), slog.Int("len", len(b)))
 	return b, nil
 }
 

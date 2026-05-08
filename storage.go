@@ -53,6 +53,7 @@ func (s *GitHubStorage) Appender(ctx context.Context, opts *tessera.AppendOption
 					res := make([]*api.HashTile, 0, len(tileIDs))
 					for _, id := range tileIDs {
 						b, err := s.ReadTile(ctx, id.Level, id.Index, layout.PartialTileSize(id.Level, id.Index, treeSize))
+						slog.DebugContext(ctx, "Read tile", slog.Uint64("level", id.Level), slog.Uint64("index", id.Index), slog.Int("len", len(b)), slog.Any("error", err))
 						if err != nil {
 							if errors.Is(err, os.ErrNotExist) {
 								res = append(res, nil)
@@ -62,6 +63,7 @@ func (s *GitHubStorage) Appender(ctx context.Context, opts *tessera.AppendOption
 						}
 						var tile api.HashTile
 						if err := tile.UnmarshalText(b); err != nil {
+							slog.ErrorContext(ctx, "Failed to unmarshal tile", slog.Uint64("level", id.Level), slog.Uint64("index", id.Index), slog.Int("len", len(b)), slog.Any("error", err))
 							return nil, err
 						}
 						res = append(res, &tile)

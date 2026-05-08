@@ -93,7 +93,7 @@ func main() {
 	}
 
 	slog.DebugContext(ctx, "Creating appender")
-	appender, shutdown, _, err := tessera.NewAppender(ctx, driver, opts)
+	appender, _, _, err := tessera.NewAppender(ctx, driver, opts)
 	if err != nil {
 		slog.ErrorContext(ctx, "Failed to create new appender", slog.Any("error", err))
 		os.Exit(1)
@@ -133,10 +133,10 @@ func main() {
 	slog.DebugContext(ctx, "Shutting down")
 
 	// 2) shutdown the appender
-	if err := shutdown(ctx); err != nil {
-		slog.ErrorContext(ctx, "Failed to shut down cleanly", slog.Any("error", err))
-		os.Exit(1)
-	}
+	// if err := shutdown(ctx); err != nil {
+	// 	slog.ErrorContext(ctx, "Failed to shut down cleanly", slog.Any("error", err))
+	// 	os.Exit(1)
+	// }
 	slog.DebugContext(ctx, "Finished")
 }
 

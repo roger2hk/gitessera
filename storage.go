@@ -62,10 +62,13 @@ func (s *GitHubStorage) Appender(ctx context.Context, opts *tessera.AppendOption
 							}
 							return nil, err
 						}
+						if len(b)%32 != 0 {
+							slog.ErrorContext(ctx, "Invalid tile length", slog.Uint64("level", id.Level), slog.Uint64("index", id.Index), slog.Int("len", len(b)))
+							return nil, fmt.Errorf("invalid tile length %d is not a multiple of 32", len(b))
+						}
 						var tile api.HashTile
-						if err := tile.UnmarshalText(b); err != nil {
-							slog.ErrorContext(ctx, "Failed to unmarshal tile", slog.Uint64("level", id.Level), slog.Uint64("index", id.Index), slog.Int("len", len(b)), slog.Any("error", err))
-							return nil, err
+						for i := 0; i < len(b); i += 32 {
+							tile.Nodes = append(tile.Nodes, b[i:i+32])
 						}
 						res = append(res, &tile)
 					}
@@ -142,10 +145,11 @@ func (s *GitHubStorage) Appender(ctx context.Context, opts *tessera.AppendOption
 				}
 				for id, tile := range tiles {
 					path := layout.TilePath(id.Level, id.Index, layout.PartialTileSize(id.Level, id.Index, newSize))
-					tileBytes, err := tile.MarshalText()
-					if err != nil {
-						return tessera.Index{}, err
+					var buf bytes.Buffer
+					for _, h := range tile.Nodes {
+						buf.Write(h)
 					}
+					tileBytes := buf.Bytes()
 					if err := addBlob(path, tileBytes); err != nil {
 						return tessera.Index{}, err
 					}

@@ -7,10 +7,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"strconv"
-	"time"
 
 	"log/slog"
 
@@ -527,7 +525,7 @@ func checkpointUnsafe(rawCp []byte) (string, uint64, []byte, error) {
 
 // ReadCheckpoint returns the latest checkpoint available.
 func (s *GitHubStorage) ReadCheckpoint(ctx context.Context) ([]byte, error) {
-	return s.readFile(ctx, layout.CheckpointPath)
+	return s.readFileWithGitDataAPI(ctx, layout.CheckpointPath)
 }
 
 // ReadTile returns the raw marshalled tile at the given coordinates, if it exists.
@@ -542,37 +540,77 @@ func (s *GitHubStorage) ReadEntryBundle(ctx context.Context, index uint64, p uin
 	return s.readFile(ctx, path)
 }
 
+// readFile reads a file from the GitHub repository using the DownloadContents API.
+// This method is efficient but subject to CDN caching (up to 5 minutes delay).
+// It is suitable for files that do not require immediate consistency after a write.
 func (s *GitHubStorage) readFile(ctx context.Context, path string) ([]byte, error) {
-	url := fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/%s/%s?t=%d", s.owner, s.repo, s.branch, path, time.Now().UnixNano())
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	rc, _, err := s.client.Repositories.DownloadContents(ctx, s.owner, s.repo, path, &github.RepositoryContentGetOptions{Ref: s.branch})
+	if err != nil {
+		var errResp *github.ErrorResponse
+		if errors.As(err, &errResp) && errResp.Response.StatusCode == 404 {
+			return nil, os.ErrNotExist
+		}
+		return nil, err
+	}
+	defer rc.Close()
+
+	b, err := io.ReadAll(rc)
+	if err != nil {
+		return nil, err
+	}
+	slog.DebugContext(ctx, "readFile download", slog.String("path", path), slog.Int("len", len(b)))
+	return b, nil
+}
+
+// readFileWithGitDataAPI reads a file from the GitHub repository by traversing the Git data tree.
+// It bypasses CDN caching by resolving the file to an immutable blob SHA.
+// This method requires multiple API calls and is less efficient, but guarantees immediate consistency.
+// It is used primarily for reading the checkpoint during polling to avoid timeout.
+func (s *GitHubStorage) readFileWithGitDataAPI(ctx context.Context, path string) ([]byte, error) {
+	ref, _, err := s.client.Git.GetRef(ctx, s.owner, s.repo, "heads/"+s.branch)
+	if err != nil {
+		return nil, err
+	}
+	commitSHA := ref.Object.GetSHA()
+
+	commit, _, err := s.client.Git.GetCommit(ctx, s.owner, s.repo, commitSHA)
+	if err != nil {
+		return nil, err
+	}
+	treeSHA := commit.Tree.GetSHA()
+
+	tree, _, err := s.client.Git.GetTree(ctx, s.owner, s.repo, treeSHA, true)
 	if err != nil {
 		return nil, err
 	}
 
-	token := os.Getenv("GITHUB_TOKEN")
-	if token != "" {
-		req.Header.Set("Authorization", "token "+token)
+	var blobSHA string
+	for _, entry := range tree.Entries {
+		if entry.GetPath() == path {
+			blobSHA = entry.GetSHA()
+			break
+		}
 	}
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusNotFound {
+	if blobSHA == "" {
 		return nil, os.ErrNotExist
 	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("failed to fetch file: %s", resp.Status)
-	}
 
-	b, err := io.ReadAll(resp.Body)
+	blob, _, err := s.client.Git.GetBlob(ctx, s.owner, s.repo, blobSHA)
 	if err != nil {
 		return nil, err
 	}
-	slog.DebugContext(ctx, "readFile direct", slog.String("path", path), slog.Int("len", len(b)))
-	return b, nil
+
+	content := blob.GetContent()
+	if blob.GetEncoding() == "base64" {
+		b, err := base64.StdEncoding.DecodeString(content)
+		if err != nil {
+			return nil, err
+		}
+		slog.DebugContext(ctx, "readFile git-data", slog.String("path", path), slog.Int("len", len(b)))
+		return b, nil
+	}
+	slog.DebugContext(ctx, "readFile git-data", slog.String("path", path), slog.Int("len", len(content)))
+	return []byte(content), nil
 }
 
 // IntegratedSize returns the current size of the integrated tree.

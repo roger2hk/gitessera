@@ -29,7 +29,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LOG_PRIVATE_KEY: ${{ secrets.LOG_PRIVATE_KEY }}
           ISSUE_BODY: ${{ github.event.issue.body }}
-        run: ./add_entry -owner ${{ github.repository_owner }} -repo ${{ github.event.repository.name }} -branch tlog
+        run: ./add_entry -owner ${{ github.repository_owner }} -repo ${{ github.event.repository.name }} -branch tlog -slog_level -4
       - name: Close Issue
         run: gh issue close ${{ github.event.issue.number }} --comment 'Auto-closed after adding to log. Index ${{ steps.add_entry.outputs.seq_index }}'
         env:

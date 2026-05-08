@@ -218,6 +218,7 @@ func (s *GitHubStorage) createCommit(ctx context.Context, treeSHA string, parent
 
 func (s *GitHubStorage) updateRef(ctx context.Context, commitSHA string) error {
 	ref := &github.Reference{
+		Ref:    github.String("refs/heads/" + s.branch),
 		Object: &github.GitObject{SHA: github.String(commitSHA)},
 	}
 	_, _, err := s.client.Git.UpdateRef(ctx, s.owner, s.repo, ref, false)

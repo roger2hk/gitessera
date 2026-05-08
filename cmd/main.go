@@ -100,7 +100,7 @@ func main() {
 	}
 
 	slog.DebugContext(ctx, "Creating awaiter")
-	await := tessera.NewPublicationAwaiter(ctx, r.ReadCheckpoint, 100*time.Millisecond)
+	await := tessera.NewPublicationAwaiter(ctx, r.ReadCheckpoint, 500*time.Millisecond)
 	slog.DebugContext(ctx, "Adding entry")
 	f := appender.Add(ctx, tessera.NewEntry([]byte(issueBody)))
 	indexFutures := []entryInfo{{name: "ISSUE_BODY", f: f}}

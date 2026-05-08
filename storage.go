@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
 	"log/slog"
 
@@ -538,6 +539,20 @@ func (s *GitHubStorage) readFile(ctx context.Context, path string) ([]byte, erro
 	if fileContent == nil {
 		return nil, fmt.Errorf("expected file, got directory at %s", path)
 	}
+
+	if fileContent.GetEncoding() == "base64" && fileContent.Content != nil {
+		cleaned := strings.ReplaceAll(*fileContent.Content, "\n", "")
+		cleaned = strings.ReplaceAll(cleaned, "\r", "")
+		cleaned = strings.ReplaceAll(cleaned, " ", "")
+
+		b, err := base64.StdEncoding.DecodeString(cleaned)
+		slog.DebugContext(ctx, "readFile base64 decode", slog.String("path", path), slog.Int("raw_len", len(*fileContent.Content)), slog.Int("decoded_len", len(b)), slog.Any("error", err))
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode base64 content: %w", err)
+		}
+		return b, nil
+	}
+
 	content, err := fileContent.GetContent()
 	slog.DebugContext(ctx, "readFile content", slog.String("path", path), slog.String("encoding", fileContent.GetEncoding()), slog.Int("len", len(content)), slog.String("content", content))
 	if err != nil {

@@ -116,6 +116,19 @@ func main() {
 			os.Exit(1)
 		}
 		slog.InfoContext(ctx, "Integrated entry", slog.Uint64("index", seq.Index), slog.String("name", entry.name))
+
+		// Write to GITHUB_OUTPUT if available
+		if githubOutput := os.Getenv("GITHUB_OUTPUT"); githubOutput != "" {
+			f, err := os.OpenFile(githubOutput, os.O_APPEND|os.O_WRONLY, 0644)
+			if err != nil {
+				slog.ErrorContext(ctx, "Failed to open GITHUB_OUTPUT file", slog.Any("error", err))
+			} else {
+				defer f.Close()
+				if _, err := fmt.Fprintf(f, "seq_index=%d\n", seq.Index); err != nil {
+					slog.ErrorContext(ctx, "Failed to write to GITHUB_OUTPUT", slog.Any("error", err))
+				}
+			}
+		}
 	}
 	slog.DebugContext(ctx, "Futures resolved")
 	slog.DebugContext(ctx, "Shutting down")

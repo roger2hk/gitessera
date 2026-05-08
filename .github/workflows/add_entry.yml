@@ -31,6 +31,6 @@ jobs:
           ISSUE_BODY: ${{ github.event.issue.body }}
         run: ./add_entry -owner ${{ github.repository_owner }} -repo ${{ github.event.repository.name }} -branch tlog
       - name: Close Issue
-        run: gh issue close ${{ github.event.issue.number }} --comment "Auto-closed after adding to log. Index: ${{ steps.add_entry.outputs.seq_index }}"
+        run: gh issue close ${{ github.event.issue.number }} --comment 'Auto-closed after adding to log. Index ${{ steps.add_entry.outputs.seq_index }}'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

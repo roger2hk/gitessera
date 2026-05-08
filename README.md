@@ -29,6 +29,30 @@ git push origin tlog
 git checkout main
 ```
 
+### Resetting the Log Data
+
+To reset the log data and start from an empty log:
+
+```bash
+# 1. Delete the local tlog branch if it exists
+git branch -D tlog
+
+# 2. Create a new orphan branch named tlog
+git checkout --orphan tlog
+
+# 3. Clear all files from the working tree
+git rm -rf .
+
+# 4. Create an empty initial commit
+git commit --allow-empty -m "Reset log data branch"
+
+# 5. Force push the branch to GitHub to overwrite existing data
+git push -f origin tlog
+
+# 6. Switch back to your main branch
+git checkout main
+```
+
 ### CLI Tool
 
 The project includes a CLI tool in `cmd/main.go` that adds an entry to the log. The entry content is read from the `ISSUE_BODY` environment variable.

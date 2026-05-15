@@ -5,5 +5,5 @@ title: 'Add Entry'
 labels: add-entry
 ---
 
-<!-- Please provide the content you want to add to the log below this line. -->
+<!-- Please provide the content you want to add to the log and remove these two lines. -->
 <!-- Note: The issue description cannot be empty when submitted. -->
